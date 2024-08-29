@@ -16,6 +16,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
     - name: Build (no features enabled)
       run: cargo build --verbose --release
 
@@ -27,16 +34,25 @@ jobs:
       with:
         package: russh
 
-    - name: List target directory
-      run: ls -R target/release
+    - name: Debug - Print current directory
+      run: pwd
+
+    - name: Debug - List current directory
+      run: ls -la
+
+    - name: Debug - List entire target directory
+      run: ls -R target
+
+    - name: Debug - List release directory
+      run: ls -la target/release
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
         name: russh-Linux
         path: |
-          target/release/russh
-          target/release/librussh.so
+          target/release/russh*
+          target/release/librussh*.so
         if-no-files-found: warn
 
   Formatting:
