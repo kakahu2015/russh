@@ -11,21 +11,35 @@ env:
 
 jobs:
   Build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
 
     - name: Build (no features enabled)
-      run: cargo build --verbose
+      run: cargo build --verbose --release
 
     - name: Build (all features enabled)
-      run: cargo build --verbose --all-features
+      run: cargo build --verbose --all-features --release
 
     - name: Check semver compatibility (russh)
       uses: obi1kenobi/cargo-semver-checks-action@v2
       with:
         package: russh
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: russh-${{ runner.os }}
+        path: |
+          target/release/russh*
+          target/release/*.dll
+          target/release/*.dylib
+          target/release/*.so
+        if-no-files-found: error
 
   Formatting:
     runs-on: ubuntu-latest
