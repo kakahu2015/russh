@@ -23,11 +23,14 @@ jobs:
         toolchain: stable
         override: true
 
-    - name: Build (no features enabled)
-      run: cargo build --verbose --release
+    - name: Debug - List workspace structure
+      run: ls -R
 
-    - name: Build (all features enabled)
-      run: cargo build --verbose --all-features --release
+    - name: Build all projects (no features enabled)
+      run: cargo build --verbose --release --workspace
+
+    - name: Build all projects (all features enabled)
+      run: cargo build --verbose --all-features --release --workspace
 
     - name: Check semver compatibility (russh)
       uses: obi1kenobi/cargo-semver-checks-action@v2
@@ -46,13 +49,19 @@ jobs:
     - name: Debug - List release directory
       run: ls -la target/release
 
+    - name: Debug - Find russh related files
+      run: find . -name "russh*"
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
         name: russh-Linux
         path: |
           target/release/russh*
-          target/release/librussh*.so
+          target/release/librussh*
+          target/release/*.rlib
+          target/release/*.so
+          target/release/*.a
         if-no-files-found: warn
 
   Formatting:
@@ -65,7 +74,7 @@ jobs:
       run: rustup component add rustfmt
 
     - name: rustfmt
-      run: cargo fmt --check
+      run: cargo fmt --all -- --check
 
   Clippy:
     runs-on: ubuntu-latest
@@ -77,7 +86,16 @@ jobs:
       run: rustup component add clippy
 
     - name: Clippy (no features enabled)
-      run: cargo clippy -- -D warnings
+      run: cargo clippy --workspace -- -D warnings
 
     - name: Clippy (all features enabled)
-      run: cargo clippy --all-features -- -D warnings
+      run: cargo clippy --workspace --all-features -- -D warnings
+
+  Test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Run tests
+      run: cargo test --workspace --verbose
