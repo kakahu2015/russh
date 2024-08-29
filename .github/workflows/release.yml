@@ -6,12 +6,50 @@ on:
       - "v*"
 
 jobs:
-  tagged-release:
-    name: "Tagged Release"
-    runs-on: "ubuntu-latest"
-
+  test:
+    name: "Run Tests"
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Run tests
+        run: cargo test --verbose
+
+  lint:
+    name: "Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Check formatting
+        run: cargo fmt -- --check
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+  tagged-release:
+    name: "Tagged Release"
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
 
       - name: Build Release Binaries
         run: |
@@ -49,40 +87,18 @@ jobs:
           asset_name: russh-linux-all-features
           asset_content_type: application/octet-stream
 
-  build-windows:
-    name: Build Windows Binary
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build
+      - name: Generate and Upload Changelog
         run: |
-          cargo build --verbose --release
-          cargo build --verbose --all-features --release
-      - name: Upload Windows Binary
+          echo "# Changelog" > CHANGELOG.md
+          echo "## ${{ github.ref_name }}" >> CHANGELOG.md
+          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s" >> CHANGELOG.md
+        
+      - name: Upload Changelog
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.tagged-release.outputs.upload_url }}
-          asset_path: .\target\release\russh.exe
-          asset_name: russh-windows.exe
-          asset_content_type: application/octet-stream
-
-  build-macos:
-    name: Build macOS Binary
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build
-        run: |
-          cargo build --verbose --release
-          cargo build --verbose --all-features --release
-      - name: Upload macOS Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.tagged-release.outputs.upload_url }}
-          asset_path: ./target/release/russh
-          asset_name: russh-macos
-          asset_content_type: application/octet-stream
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./CHANGELOG.md
+          asset_name: CHANGELOG.md
+          asset_content_type: text/markdown
